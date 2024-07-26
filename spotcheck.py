@@ -122,7 +122,7 @@ LOGIN_BUTTON_TXT_FONT = ('Helvetica', 10)
 CAM_FRAMERATE_NUMERATOR = 1
 CAM_FRAMERATE_DENOMINATOR = 6
 CAM_SENSOR_MODE = 3
-CAM_ROTATION = 180
+CAM_ROTATION = 0
 CAM_ISO = 200
 CAM_SLEEP_TIME = 2
 CAM_SHUTTER_SPEED = 6000000
@@ -1017,7 +1017,8 @@ class SystemCheckFrame(Frame):
 				self.next_clicked()
 
 		else:
-			self.back_clicked()
+			# ~ self.back_clicked()
+			self.base_window.destroy()
 
 class NewQualitativeFrame3(Frame):
 	def __init__(self, container):
@@ -2558,9 +2559,9 @@ class QualitativeAnalysisFrame3(Frame):
 				if(self.base_window.main_menu.threshold_value == 0): 
 					if(self.base_window.qualitative_analysis_2.id_list[i] != 'N/A'):
 						self.result_label[i]['text'] = round(self.result[i]/self.base_window.system_check.threshold,2)
-						if(float(self.result_label[i]['text']) < self.base_window.main_menu.num1):
+						if(float(self.result_label[i]['text']) <= self.base_window.main_menu.num1):
 							self.result_label[i]['bg'] = NEGATIVE_COLOR
-						elif(float(self.result_label[i]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[i]['text']) <= self.base_window.main_menu.num3):
 							self.result_label[i]['bg'] = LOW_COPY_COLOR
 						else:
 							self.result_label[i]['bg'] = POSITIVE_COLOR
@@ -2571,9 +2572,9 @@ class QualitativeAnalysisFrame3(Frame):
 				else:
 					if(self.base_window.qualitative_analysis_2.id_list[i] != 'N/A'):
 						self.result_label[i]['text'] = round(self.result[i]/self.base_window.system_check.threshold,2)
-						if(float(self.result_label[i]['text']) < self.base_window.main_menu.num2):
+						if(float(self.result_label[i]['text']) <= self.base_window.main_menu.num2):
 							self.result_label[i]['bg'] = NEGATIVE_COLOR
-						elif(float(self.result_label[i]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[i]['text']) <= self.base_window.main_menu.num3):
 							self.result_label[i]['bg'] = LOW_COPY_COLOR
 						else:
 							self.result_label[i]['bg'] = POSITIVE_COLOR
@@ -2806,10 +2807,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c1]=='N/A'):
 						sheet['D'+str(i+12)] = 'N/A'
 					else:
-						if(float(self.result_label[c1]['text']) < self.base_window.main_menu.num1):
+						if(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num1):
 							sheet['D'+str(i+12)] = 'N'
 							sheet['D'+str(i+12)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c1]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num3):
 								sheet['D'+str(i+12)] = 'P_L'
 								sheet['D'+str(i+12)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 								sheet['D'+str(i+12)].font = font2
@@ -2828,10 +2829,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c2]=='N/A'):
 						sheet['D'+str(i+16)] = 'N/A'
 					else:
-						if(float(self.result_label[c2]['text']) < self.base_window.main_menu.num1):
+						if(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num1):
 							sheet['D'+str(i+16)] = 'N'
 							sheet['D'+str(i+16)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c2]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+16)] = 'P_L'
 							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+16)].font = font2
@@ -2850,10 +2851,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c3]=='N/A'):
 						sheet['D'+str(i+20)] = 'N/A'
 					else:
-						if(float(self.result_label[c3]['text']) < self.base_window.main_menu.num1):
+						if(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num1):
 							sheet['D'+str(i+20)] = 'N'
 							sheet['D'+str(i+20)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c3]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+20)] = 'P_L'
 							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+20)].font = font2
@@ -2872,10 +2873,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c4]=='N/A'):
 						sheet['D'+str(i+24)] = 'N/A'
 					else:
-						if(float(self.result_label[c4]['text']) < self.base_window.main_menu.num1):
+						if(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num1):
 							sheet['D'+str(i+24)] = 'N'
 							sheet['D'+str(i+24)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c4]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+24)] = 'P_L'
 							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+24)].font = font2
@@ -2896,10 +2897,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c1]=='N/A'):
 						sheet['D'+str(i+12)] = 'N/A'
 					else:
-						if(float(self.result_label[c1]['text']) < self.base_window.main_menu.num2):
+						if(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num2):
 							sheet['D'+str(i+12)] = 'N'
 							sheet['D'+str(i+12)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c1]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num3):
 								sheet['D'+str(i+12)] = 'P_L'
 								sheet['D'+str(i+12)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 								sheet['D'+str(i+12)].font = font2
@@ -2918,10 +2919,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c2]=='N/A'):
 						sheet['D'+str(i+16)] = 'N/A'
 					else:
-						if(float(self.result_label[c2]['text']) < self.base_window.main_menu.num2):
+						if(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num2):
 							sheet['D'+str(i+16)] = 'N'
 							sheet['D'+str(i+16)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c2]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+16)] = 'P_L'
 							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+16)].font = font2
@@ -2940,10 +2941,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c3]=='N/A'):
 						sheet['D'+str(i+20)] = 'N/A'
 					else:
-						if(float(self.result_label[c3]['text']) < self.base_window.main_menu.num2):
+						if(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num2):
 							sheet['D'+str(i+20)] = 'N'
 							sheet['D'+str(i+20)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c3]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+20)] = 'P_L'
 							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+20)].font = font2
@@ -2962,10 +2963,10 @@ class QualitativeAnalysisFrame3(Frame):
 					if(self.base_window.qualitative_analysis_2.id_list[c4]=='N/A'):
 						sheet['D'+str(i+24)] = 'N/A'
 					else:
-						if(float(self.result_label[c4]['text']) < self.base_window.main_menu.num2):
+						if(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num2):
 							sheet['D'+str(i+24)] = 'N'
 							sheet['D'+str(i+24)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
-						elif(float(self.result_label[c4]['text']) < self.base_window.main_menu.num3):
+						elif(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num3):
 							sheet['D'+str(i+24)] = 'P_L'
 							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
 							sheet['D'+str(i+24)].font = font2
@@ -6744,7 +6745,7 @@ class MainMenu(Frame):
 
 		
 		self.thr1_button = Button(self.threshold_label_frame,
-					text = "Low",
+					text = "Standard",
 					font = SWITCH_PAGE_BUTTON_FONT,
 					bg = SWITCH_PAGE_BUTTON_BGD_COLOR,
 					fg = SWITCH_PAGE_BUTTON_TXT_COLOR,
