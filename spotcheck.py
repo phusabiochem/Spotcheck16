@@ -39,6 +39,9 @@ import re
 import dns.resolver
 import socket
 
+import board
+import adafruit_ds1307
+import time
 
 APP_BGD_COLOR = "white smoke"
 # MAIN MENU DEFINE
@@ -103,6 +106,9 @@ NEGATIVE_COLOR = "green3"
 POSITIVE_COLOR = "red"
 LOW_COPY_COLOR = "pink"
 
+QS_FIRSTWELL_COLOR = "tomato1"
+QS_LASTWELL_COLOR = "deep sky blue"
+
 MAIN_MENU_BUTTON_FONT = ('Helvetica', 10, 'bold')
 LABELFRAME_TXT_FONT = ('Helvetica', 12)
 MAIN_FUCNTION_BUTTON_FONT = ('Helvetica', 10)
@@ -115,6 +121,7 @@ CONFIRM_BUTTON_TXT_FONT = ('Helvetica', 10)
 SAMPLE_BUTTON_TXT_FONT = ('Helvetica', 10)
 SAMPLE_LABEL_TXT_FONT = ('Helvetica', 13)
 RESULT_LABEL_TXT_FONT = ('Helvetica', 10)
+RESULT_LABEL_TXT_FONT_1 = ('Helvetica', 10, 'bold')
 PROGRAM_BUTTON_TXT_FONT = ('Helvetica', 10)
 LOGIN_LABEL_TXT_FONT = ('Helvetica', 15)
 LOGIN_BUTTON_TXT_FONT = ('Helvetica', 10)
@@ -122,7 +129,7 @@ LOGIN_BUTTON_TXT_FONT = ('Helvetica', 10)
 CAM_FRAMERATE_NUMERATOR = 1
 CAM_FRAMERATE_DENOMINATOR = 6
 CAM_SENSOR_MODE = 3
-CAM_ROTATION = 0
+CAM_ROTATION = 180
 CAM_ISO = 200
 CAM_SLEEP_TIME = 2
 CAM_SHUTTER_SPEED = 6000000
@@ -151,6 +158,10 @@ ser = serial.Serial(
 	bytesize = serial.EIGHTBITS,
 	timeout = 1
 )
+
+# DS1307
+i2c = board.I2C()
+rtc = adafruit_ds1307.DS1307(i2c)
 
 ##### GLOBAL VARIABLE - END #####
 
@@ -316,7 +327,6 @@ for i in range(0,16):
 		pos = str(chr(65+i-11)) + "5"
 		pos1 = str(chr(65+i-11)) + "14"
 
-
 	coefficient[i] = float(sheet[pos].value)
 	base_intensity[i] = float(sheet[pos1].value)
 
@@ -413,6 +423,44 @@ last_checkSecond = int(fr.readline())
 last_checkValue = float(fr.readline())
 ##### SYSTEM CHECK HANDLE - STOP ##### 
 
+##### OLD INFO HANDLE - START #####
+if not os.path.exists('/home/pi/Spotcheck/.oldinfo.txt'):
+	fw_info = open('/home/pi/Spotcheck/.oldinfo.txt', 'x')
+	fw_info.writelines('@gmail.com\n')
+	fw_info.writelines('user\n')
+	fw_info.close()
+	autofill_email = "@gmail.com"
+	autofill_user = "user"
+else:
+	fr_info = open('/home/pi/Spotcheck/.oldinfo.txt')
+	autofill_email = fr_info.readline().strip('\n')
+	autofill_user = fr_info.readline().strip('\n')
+##### OLD INFO HANDLE - STOP #####
+
+##### ACTIVE CODE HANDLE - START #####
+try:
+	fr = open(working_dir + "/active_code.txt","r")
+	active_code = fr.readline().strip('\n')
+except:
+	active_code = '0'
+##### ACTIVE CODE HANDLE - END #####
+
+##### TRIAL EXPIRED HANDLE - START #####
+try:
+	fr = open("/var/tmp/.trial_info.txt","r")
+	trial_date = int(fr.readline())
+	trial_month = int(fr.readline())
+	trial_year = int(fr.readline())
+	trial_30days_extend_code = fr.readline().strip('\n')
+	trial_full_active_code = fr.readline().strip('\n')
+except:
+	trial_date = 0
+	trial_month = 0
+	trial_year = 0
+	trial_30days_extend_code = ''
+	trial_full_active_code = ''
+##### TRIAL EXPIRED HANDLE - END #####
+
 
 class ScrollableFrame(Frame):
 	def __init__(self, container, *args, **kwargs):
@@ -477,6 +525,7 @@ class ScrollableFrame2(Frame):
 
 		canvas.pack(side="left", expand=TRUE)
 		scrollbar.pack(side="right", fill="y")
+
 
 
 # EMAIL - START
@@ -899,7 +948,7 @@ class SystemCheckFrame(Frame):
 					pos = str(chr(65+i-11)) + "5"
 
 				sheet[pos] = self.result[i]
-
+				
 			self.average_current_intensity = round(sum(self.result)/len(self.result),1)
 			self.threshold = round(self.average_current_intensity*a+b,1)
 			print("threshold: ", self.threshold)
@@ -2530,7 +2579,7 @@ class QualitativeAnalysisFrame3(Frame):
 			tab_control.grid(row=0, column=0, padx=0, pady=1, sticky=EW)
 
 			self.check_result_frame = Frame(self.result_tab, bg=RESULT_TABLE_FRAME_BGD_COLOR)
-			self.check_result_frame.grid(row=0, column=0, padx=76, pady=95, sticky=S)
+			self.check_result_frame.grid(row=0, column=0, padx=76)
 
 			# ~ Pmw.initialise(self.base_window)
 			# ~ self.tooltip = list(range(48))
@@ -2609,7 +2658,6 @@ class QualitativeAnalysisFrame3(Frame):
 			na_copy_text_label.grid(row=3, column=1, padx=20, pady=10)
 			
 
-			
 			# images tab
 			img_labelframe_1 = LabelFrame(image_tab,
 										bg="black",
@@ -2651,7 +2699,7 @@ class QualitativeAnalysisFrame3(Frame):
 
 			# In button frame
 			self.thr_value = IntVar()
-			self.thr1_radio_button = Radiobutton(self.button_frame, text = "Low", variable = self.thr_value, value=0, command=self.thr_choose)
+			self.thr1_radio_button = Radiobutton(self.button_frame, text = "Standard", variable = self.thr_value, value=0, command=self.thr_choose)
 			self.thr2_radio_button = Radiobutton(self.button_frame, text = "High", variable = self.thr_value, value=1, command=self.thr_choose)
 			
 			self.thr1_radio_button.pack(ipady=10, side=LEFT)
@@ -2800,7 +2848,7 @@ class QualitativeAnalysisFrame3(Frame):
 			c3=-2
 			c4=-1
 			
-			if(self.base_window.main_menu.threshold_value == 0):
+			if(self.thr_value.get() == 0):
 				for i in range(0,4):
 					c1=c1+4
 					sheet['B'+str(i+12)] = self.base_window.qualitative_analysis_2.id_list[c1]
@@ -3070,6 +3118,7 @@ class QualitativeAnalysisFrame3(Frame):
 				self.base_window.qualitative_analysis_2.recipient_email,
 				"Spotcheck Result",
 				"This is an automatic email from Spotcheck device.",
+				# self.base_window.qualitative_analysis_0.result_folder_path + '.zip',
 				self.base_window.qualitative_analysis_0.result_folder_path +  '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsx',
 				self.base_window.qualitative_analysis_0.experiment_name).send()
 			# ~ except:
@@ -3080,6 +3129,11 @@ class QualitativeAnalysisFrame3(Frame):
 		self.check_result_frame.destroy()
 		self.check_result_frame = Frame(self.result_tab, bg=RESULT_TABLE_FRAME_BGD_COLOR)
 		self.check_result_frame.grid(row=0, column=0, padx=76)
+
+		try:
+			self.save_button.destroy()
+		except:
+			pass
 
 		r=0
 		c=-1
@@ -3092,7 +3146,7 @@ class QualitativeAnalysisFrame3(Frame):
 									width=6,
 									height=3,
 									# ~ bg = RESULT_LABEL_BGD_COLOR,
-									font = RESULT_LABEL_TXT_FONT)
+									font = RESULT_LABEL_TXT_FONT_1)
 
 			# ~ self.tooltip[i] = Pmw.Balloon(self.base_window)
 			# ~ self.tooltip[i].bind(result_label[i], self.base_window.qualitative_analysis_2.id_list[i])
@@ -3110,6 +3164,7 @@ class QualitativeAnalysisFrame3(Frame):
 				else:
 					self.result_label[i]['text'] = "N/A"
 					self.result_label[i]['bg'] = NA_COLOR
+				
 			else:
 				if(self.base_window.qualitative_analysis_2.id_list[i] != 'N/A'):
 					self.result_label[i]['text'] = round(self.result[i]/self.base_window.system_check.threshold,2)
@@ -3123,12 +3178,339 @@ class QualitativeAnalysisFrame3(Frame):
 				else:
 					self.result_label[i]['text'] = "N/A"
 					self.result_label[i]['bg'] = NA_COLOR
+
 			self.result_label[i].grid(row=r,column=c, padx=1, pady=1)
 			
 		# ~ self.result_label[47]['text'] = 'B'
 		# ~ self.result_label[47]['bg'] = 'blue'
+
+		if(self.base_window.main_menu.threshold_value != self.thr_value.get()):
+			self.save_button = Button(self.button_frame,
+								text = "Save",
+								font = SWITCH_PAGE_BUTTON_FONT,
+								width = 10,
+								# height = SWITCH_PAGE_BUTTON_HEIGHT,
+								bg = 'lavender',
+								fg = SWITCH_PAGE_BUTTON_TXT_COLOR,
+								borderwidth = 0,
+								command = self.save_clicked)
+			self.save_button.pack(ipady=10, side=LEFT, padx=1)
 	
 		self.base_window.update_idletasks()
+		sleep(1)
+		if(self.base_window.main_menu.threshold_value == 0 and self.thr_value.get() == 1):
+			if(os.path.exists(self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(high).jpg")):
+				pass
+			else:
+				subprocess.call(["scrot", self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(high).jpg"])
+
+		elif(self.base_window.main_menu.threshold_value == 1 and self.thr_value.get() == 0):
+			if(os.path.exists(self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(normal).jpg")):
+				pass
+			else:
+				subprocess.call(["scrot", self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(normal).jpg"])
+	
+	def save_clicked(self):
+		path = filedialog.asksaveasfilename(initialdir = self.base_window.qualitative_analysis_0.result_folder_path + '/', defaultextension='.xlsx')
+		if path is not None:
+			wb = Workbook()
+			sheet = wb.active
+
+			font0 = Font(bold=False)
+			font1 = Font(size='14', bold=True, color='00FF0000')
+			font2 = Font(bold=True)
+			thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+			# ~ sheet.protection.sheet = True
+			# ~ sheet.protection.enable()
+
+			# ~ sheet["B8"].protection = Protection(locked=False, hidden=False)
+
+			for i in range(12,28):
+				sheet["B"+str(i)].font = font0
+				sheet["D"+str(i)].font = font0
+
+			img = Img(working_dir + "/logo.png")
+			img.height = 39
+			img.width = 215
+			img.anchor = 'B2'
+			sheet.add_image(img)
+
+			if(self.base_window.main_menu.threshold_value == 0 and self.thr_value.get() == 1):
+				img = Img(self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(high).jpg")
+				img.anchor = 'H11'
+				sheet.add_image(img)
+			elif(self.base_window.main_menu.threshold_value == 1 and self.thr_value.get() == 0):
+				img = Img(self.base_window.qualitative_analysis_0.result_folder_path + "/result_capture(normal).jpg")
+				img.anchor = 'H11'
+				sheet.add_image(img)
+				
+			sheet["C10"] = self.base_window.qualitative_analysis_0.template_name
+
+			sheet.merge_cells(start_row=5, start_column=2, end_row=5, end_column=6)
+			sheet["B5"] = 'ANALYSIS RESULTS'
+			sheet["B5"].font = font1
+			sheet.cell(row=5,column=2).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+			#global foldername
+			sheet["B7"] = 'Test name: ' + self.base_window.qualitative_analysis_0.experiment_name
+			sheet["B7"].font = font2
+			sheet['B8'] = 'Test technician name: ' + self.base_window.qualitative_analysis_0.user_name
+			sheet["B8"].font = font2
+			#global covid19dir_old
+			sheet['B9'] = 'Date: ' + self.base_window.qualitative_analysis_0.create_time
+			sheet["B9"].font = font2
+			sheet['B60'] = 'Note:'
+			sheet["B60"].font = font2
+			sheet['B61'] = '+ N/A: No sample'
+			sheet['B62'] = '+ N: Negative'
+			sheet['C61'] = '+ P_L: Low copy'
+			sheet['C62'] = '+ P_H: Positive'
+
+			sheet.merge_cells(start_row=64, start_column=4, end_row=64, end_column=6)
+			sheet.merge_cells(start_row=65, start_column=4, end_row=65, end_column=6)
+			sheet['B64'] = 'Test Technician'
+			sheet['B65'] = ''
+			sheet['D64'] = 'Head of the Laboratory'
+			sheet['D65'] = ''
+			sheet["B64"].font = font2
+			sheet["D64"].font = font2
+			sheet["B64"].protection = Protection(locked=False, hidden=False)
+			sheet["D64"].protection = Protection(locked=False, hidden=False)
+			sheet.cell(row=64,column=2).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+			sheet.cell(row=65,column=2).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+			sheet.cell(row=64,column=4).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+			sheet.cell(row=65,column=4).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+
+			for r in range(11,28):
+				for c in range(2,7):
+					sheet.cell(row=r,column=c).alignment = Alignment(horizontal='center',vertical='center',wrapText=True)
+					sheet.cell(row=r,column=c).border = thin_border
+
+			sheet.column_dimensions['B'].width = 26
+			sheet.column_dimensions['C'].width = 12
+			sheet.column_dimensions['D'].width = 12
+			sheet.column_dimensions['E'].width = 12
+			sheet.column_dimensions['F'].width = 12
+
+			sheet.row_dimensions[11].height = 40
+
+			sheet['B11'] = 'Sample name'
+			sheet["B11"].font = font2
+			sheet["B11"].fill = PatternFill(start_color='00EFEFEF', end_color='00EFEFEF', fill_type='solid')
+			sheet['C11'] = 'Sample positon'
+			sheet["C11"].font = font2
+			sheet["C11"].fill = PatternFill(start_color='00EFEFEF', end_color='00EFEFEF', fill_type='solid')
+			sheet['D11'] = 'Spotcheck Result'
+			sheet["D11"].font = font2
+			sheet["D11"].fill = PatternFill(start_color='00EFEFEF', end_color='00EFEFEF', fill_type='solid')
+			sheet['E11'] = 'Gel Result'
+			sheet["E11"].font = font2
+			sheet["E11"].fill = PatternFill(start_color='00EFEFEF', end_color='00EFEFEF', fill_type='solid')
+			sheet['F11'] = 'Final Result'
+			sheet["F11"].font = font2
+			sheet["F11"].fill = PatternFill(start_color='00EFEFEF', end_color='00EFEFEF', fill_type='solid')
+
+			for i in range (12,28):
+				if(i<16):
+					sheet['C'+str(i)] = str(chr(65+i-12)) + '1'
+				elif(i<20):
+					sheet['C'+str(i)] = str(chr(65+i-16)) + '2'
+				elif(i<24):
+					sheet['C'+str(i)] = str(chr(65+i-20)) + '3'
+				else:
+					sheet['C'+str(i)] = str(chr(65+i-24)) + '4'
+
+			c1=-4
+			c2=-3
+			c3=-2
+			c4=-1
+			
+			if(self.thr_value.get() == 0):
+				for i in range(0,4):
+					c1=c1+4
+					sheet['B'+str(i+12)] = self.base_window.qualitative_analysis_2.id_list[c1]
+					if(self.base_window.qualitative_analysis_2.id_list[c1]=='N/A'):
+						sheet['D'+str(i+12)] = 'N/A'
+					else:
+						if(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num1):
+							sheet['D'+str(i+12)] = 'N'
+							sheet['D'+str(i+12)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num3):
+								sheet['D'+str(i+12)] = 'P_L'
+								sheet['D'+str(i+12)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+								sheet['D'+str(i+12)].font = font2
+								sheet['B'+str(i+12)].font = font2
+						else:
+							sheet['D'+str(i+12)] = 'P_H'
+							sheet['D'+str(i+12)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+12)].font = font2
+							sheet['B'+str(i+12)].font = font2
+						
+					sheet['E'+str(i+12)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+12)].protection = Protection(locked=False, hidden=False)
+
+					c2=c2+4
+					sheet['B'+str(i+16)] = self.base_window.qualitative_analysis_2.id_list[c2]
+					if(self.base_window.qualitative_analysis_2.id_list[c2]=='N/A'):
+						sheet['D'+str(i+16)] = 'N/A'
+					else:
+						if(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num1):
+							sheet['D'+str(i+16)] = 'N'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+16)] = 'P_L'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+16)].font = font2
+							sheet['B'+str(i+16)].font = font2
+						else:
+							sheet['D'+str(i+16)] = 'P_H'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+16)].font = font2
+							sheet['B'+str(i+16)].font = font2
+													
+					sheet['E'+str(i+16)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+16)].protection = Protection(locked=False, hidden=False)
+
+					c3=c3+4
+					sheet['B'+str(i+20)] = self.base_window.qualitative_analysis_2.id_list[c3]
+					if(self.base_window.qualitative_analysis_2.id_list[c3]=='N/A'):
+						sheet['D'+str(i+20)] = 'N/A'
+					else:
+						if(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num1):
+							sheet['D'+str(i+20)] = 'N'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+20)] = 'P_L'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+20)].font = font2
+							sheet['B'+str(i+20)].font = font2
+						else:
+							sheet['D'+str(i+20)] = 'P_H'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+20)].font = font2
+							sheet['B'+str(i+20)].font = font2
+							
+					sheet['E'+str(i+20)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+20)].protection = Protection(locked=False, hidden=False)
+
+					c4=c4+4
+					sheet['B'+str(i+24)] = self.base_window.qualitative_analysis_2.id_list[c4]
+					if(self.base_window.qualitative_analysis_2.id_list[c4]=='N/A'):
+						sheet['D'+str(i+24)] = 'N/A'
+					else:
+						if(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num1):
+							sheet['D'+str(i+24)] = 'N'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+24)] = 'P_L'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+24)].font = font2
+							sheet['B'+str(i+24)].font = font2
+						else:
+							sheet['D'+str(i+24)] = 'P_H'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+24)].font = font2
+							sheet['B'+str(i+24)].font = font2
+					   
+					sheet['E'+str(i+24)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+24)].protection = Protection(locked=False, hidden=False)
+			
+			else: # if(self.base_window.main_menu.threshold_value == 1)
+				for i in range(0,4):
+					c1=c1+4
+					sheet['B'+str(i+12)] = self.base_window.qualitative_analysis_2.id_list[c1]
+					if(self.base_window.qualitative_analysis_2.id_list[c1]=='N/A'):
+						sheet['D'+str(i+12)] = 'N/A'
+					else:
+						if(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num2):
+							sheet['D'+str(i+12)] = 'N'
+							sheet['D'+str(i+12)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c1]['text']) <= self.base_window.main_menu.num3):
+								sheet['D'+str(i+12)] = 'P_L'
+								sheet['D'+str(i+12)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+								sheet['D'+str(i+12)].font = font2
+								sheet['B'+str(i+12)].font = font2
+						else:
+							sheet['D'+str(i+12)] = 'P_H'
+							sheet['D'+str(i+12)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+12)].font = font2
+							sheet['B'+str(i+12)].font = font2
+						
+					sheet['E'+str(i+12)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+12)].protection = Protection(locked=False, hidden=False)
+
+					c2=c2+4
+					sheet['B'+str(i+16)] = self.base_window.qualitative_analysis_2.id_list[c2]
+					if(self.base_window.qualitative_analysis_2.id_list[c2]=='N/A'):
+						sheet['D'+str(i+16)] = 'N/A'
+					else:
+						if(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num2):
+							sheet['D'+str(i+16)] = 'N'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c2]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+16)] = 'P_L'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+16)].font = font2
+							sheet['B'+str(i+16)].font = font2
+						else:
+							sheet['D'+str(i+16)] = 'P_H'
+							sheet['D'+str(i+16)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+16)].font = font2
+							sheet['B'+str(i+16)].font = font2
+													
+					sheet['E'+str(i+16)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+16)].protection = Protection(locked=False, hidden=False)
+
+					c3=c3+4
+					sheet['B'+str(i+20)] = self.base_window.qualitative_analysis_2.id_list[c3]
+					if(self.base_window.qualitative_analysis_2.id_list[c3]=='N/A'):
+						sheet['D'+str(i+20)] = 'N/A'
+					else:
+						if(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num2):
+							sheet['D'+str(i+20)] = 'N'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c3]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+20)] = 'P_L'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+20)].font = font2
+							sheet['B'+str(i+20)].font = font2
+						else:
+							sheet['D'+str(i+20)] = 'P_H'
+							sheet['D'+str(i+20)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+20)].font = font2
+							sheet['B'+str(i+20)].font = font2
+							
+					sheet['E'+str(i+20)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+20)].protection = Protection(locked=False, hidden=False)
+
+					c4=c4+4
+					sheet['B'+str(i+24)] = self.base_window.qualitative_analysis_2.id_list[c4]
+					if(self.base_window.qualitative_analysis_2.id_list[c4]=='N/A'):
+						sheet['D'+str(i+24)] = 'N/A'
+					else:
+						if(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num2):
+							sheet['D'+str(i+24)] = 'N'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='0000FF00', end_color='0000FF00', fill_type='solid')
+						elif(float(self.result_label[c4]['text']) <= self.base_window.main_menu.num3):
+							sheet['D'+str(i+24)] = 'P_L'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FFCCFF', end_color='00FFCCFF', fill_type='solid')
+							sheet['D'+str(i+24)].font = font2
+							sheet['B'+str(i+24)].font = font2
+						else:
+							sheet['D'+str(i+24)] = 'P_H'
+							sheet['D'+str(i+24)].fill = PatternFill(start_color='00FF9999', end_color='00FF9999', fill_type='solid')
+							sheet['D'+str(i+24)].font = font2
+							sheet['B'+str(i+24)].font = font2
+					   
+					sheet['E'+str(i+24)].protection = Protection(locked=False, hidden=False)
+					sheet['F'+str(i+24)].protection = Protection(locked=False, hidden=False)
+			
+			# ~ sheet['D59'] = 'B'
+			# ~ sheet['D'+str(i+52)].fill = PatternFill(start_color='FFFFFFFF', end_color='FFFFFFFF', fill_type='solid')
+			sheet.print_area = 'A1:G70'
+			# ~ wb.save(self.base_window.qualitative_analysis_1.analysis_result_folder + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsm')
+			wb.save(path)
+			messagebox.showinfo("","File saved successfully")
 				
 	def thr_choose(self):
 		print("thr_value = ", self.thr_value.get()) 
@@ -3784,6 +4166,7 @@ class QuantitativeAnalysisFrame3(QualitativeAnalysisFrame3):
 			sheet.print_area = 'A1:G70'
 			wb.save(self.base_window.quantitative_analysis_1.result_folder_path + '/' + self.base_window.quantitative_analysis_0.experiment_name['text'] + '.xlsx')
 
+
 			if(os.path.exists(id_path + self.base_window.quantitative_analysis_2.id_file_name_label['text'] + '.xlsx')):
 				try:
 					shutil.move(id_path + self.base_window.quantitative_analysis_2.id_file_name_label['text'] + '.xlsx', id_old_path)
@@ -3851,7 +4234,7 @@ class QualitativeAnalysisFrame2(Frame):
 		self['bg'] = MAIN_FUNCTION_FRAME_BGD_COLOR
 		self.base_window = container
 
-		self.id_list = list(range(48))
+		self.id_list = list(range(16))
 
 		self.title_frame = Frame(self, bg = TITILE_FRAME_BGD_COLOR)
 		self.title_frame.pack(ipadx=0, ipady=5, fill=X)
@@ -3961,15 +4344,17 @@ class QualitativeAnalysisFrame2(Frame):
 				msg = messagebox.askquestion("", "Do you want the device to automatically email the results ?")
 				if(msg=='yes'):
 					self.email_label_frame = LabelFrame(self.work_frame,
-														width = 100,
-														height = 50,
+														width = 200,
+														height = 100,
 														text = "Recipient email",
-														bg = 'dodger blue')
+														bg = 'grey75')
 					self.email_label_frame.place(x=200, y=150)
 
 					self.email_entry = Entry(self.email_label_frame, width=30, justify='right', font=('Courier',14))
-					self.email_entry.pack()
-
+					self.email_entry.pack(padx=10, pady=10)
+					
+					self.email_entry.insert(0, autofill_email.strip('\n'))
+					
 					self.ok_button = Button(self.email_label_frame,
 								text = "OK",
 								font = SWITCH_PAGE_BUTTON_FONT,
@@ -3979,7 +4364,7 @@ class QualitativeAnalysisFrame2(Frame):
 								fg = SWITCH_PAGE_BUTTON_TXT_COLOR,
 								borderwidth = 0,
 								command = self.ok_clicked)
-					self.ok_button.pack(side=LEFT, padx=20, pady=2, ipady=10, ipadx=20)
+					self.ok_button.pack(side=LEFT, padx=20, pady=10, ipady=10, ipadx=20)
 
 					self.cancel_button = Button(self.email_label_frame,
 								text = "Cancel",
@@ -3990,7 +4375,7 @@ class QualitativeAnalysisFrame2(Frame):
 								fg = SWITCH_PAGE_BUTTON_TXT_COLOR,
 								borderwidth = 0,
 								command = self.cancel_clicked)
-					self.cancel_button.pack(side=RIGHT, padx=20, pady=2, ipady=10, ipadx=20)
+					self.cancel_button.pack(side=RIGHT, padx=20, pady=10, ipady=10, ipadx=20)
 
 				else:
 					self.automail_is_on = 0
@@ -4014,12 +4399,23 @@ class QualitativeAnalysisFrame2(Frame):
 			# ~ if (match == None):
 				# ~ messagebox.showerror("","Email syntax error")
 			# ~ else:
+			
+			global autofill_email
+			autofill_email = addressToVerify
+			fw_info = open('/home/pi/Spotcheck/.oldinfo.txt', 'w')
+			fw_info.writelines(addressToVerify + '\n')
+			fw_info.writelines(autofill_user + '\n')
+			fw_info.close()
+			
 			self.recipient_email = addressToVerify
 			self.automail_is_on = 1
 			self.base_window.forget_page()
 			self.base_window.page_num = self.base_window.frame_list.index(self.base_window.qualitative_analysis_3)
 			self.base_window.switch_page()
 			self.base_window.qualitative_analysis_3.serial_handle()
+			
+			
+	
 
 	def cancel_clicked(self):
 		self.email_label_frame.place_forget()
@@ -4619,7 +5015,7 @@ class QualitativeAnalysisFrame0(Frame):
 								font = ('Helvetica', 10, 'bold'),
 								bg = LABEL_BGD_COLOR,
 								fg = LABEL_TXT_COLOR)
-		template_name_label.grid(row=2, column=1, sticky=E, pady=20, padx=10)
+		template_name_label.grid(row=2, column=1, sticky=NE, pady=20, padx=30)
 
 		self.experiment_name_entry = Entry(setup_labelframe, width=30, font=ENTRY_TXT_FONT)
 		self.experiment_name_entry.grid(row=0, column=2, sticky=W, pady=20, padx=20)
@@ -4627,7 +5023,13 @@ class QualitativeAnalysisFrame0(Frame):
 		self.user_name_entry.grid(row=1, column=2, sticky=W, pady=20, padx=20)
 		self.template_name_entry = Entry(setup_labelframe, width=30, font=ENTRY_TXT_FONT)
 		self.template_name_entry.grid(row=2, column=2, sticky=W, pady=20, padx=20)
-
+		
+		global autofill_email, autofill_user
+		fr_info = open('/home/pi/Spotcheck/.oldinfo.txt')
+		autofill_email = fr_info.readline().strip('\n')
+		autofill_user = fr_info.readline().strip('\n')
+		
+		self.user_name_entry.insert(0, autofill_user)
 
 		# In button frame
 		self.back_button = Button(self.button_frame,
@@ -4663,42 +5065,54 @@ class QualitativeAnalysisFrame0(Frame):
 		self.experiment_name = self.experiment_name_entry.get()
 		self.user_name = self.user_name_entry.get()
 		self.template_name = self.template_name_entry.get()
-		if(self.experiment_name==''):
-			messagebox.showwarning("","Plese enter Folder Name !")
-		elif (self.user_name==''):
-			messagebox.showwarning("","Plese enter User Name !")
-		elif(self.template_name == ''):
-			messagebox.showwarning("","Plese enter Template Name !")
+		# ~ if(self.experiment_name==''):
+			# ~ messagebox.showwarning("","Plese enter Folder Name !")
+		# ~ elif (self.user_name==''):
+			# ~ messagebox.showwarning("","Plese enter User Name !")
+		# ~ elif(self.template_name == ''):
+			# ~ messagebox.showwarning("","Plese enter Template Name !")
+		# ~ else:
+		
+		global autofill_email, autofill_user
+		autofill_user = self.user_name
+		fw_info = open('/home/pi/Spotcheck/.oldinfo.txt', 'w')
+		fw_info.writelines(autofill_email + '\n')
+		fw_info.writelines(self.user_name + '\n')
+		fw_info.close()
+		
+		### NEW ADD - START ###
+		self.create_time = strftime("%y-%m-%d")
+		self.result_folder_name_0 = self.create_time
+		self.create_time_1 = strftime("%Hh%Mm%Ss")
+		
+		if not os.path.exists(results_path + self.result_folder_name_0):
+			 self.result_folder_path_0  = os.path.join(results_path , self.result_folder_name_0)
+			 os.mkdir(self.result_folder_path_0)
 		else:
-
-			### NEW ADD - START ###
-			self.create_time = strftime("%y-%m-%d") 
-			self.result_folder_name_0 = self.create_time
-			
-			if not os.path.exists(results_path + self.result_folder_name_0):
-				 self.result_folder_path_0  = os.path.join(results_path , self.result_folder_name_0)
-				 os.mkdir(self.result_folder_path_0)
-			else:
-				self.result_folder_path_0 = results_path +  self.result_folder_name_0
-				
+			self.result_folder_path_0 = results_path +  self.result_folder_name_0
+		
+		if(self.experiment_name != ''):
 			self.result_folder_name = self.experiment_name
-			self.result_folder_path = os.path.join(self.result_folder_path_0, self.result_folder_name)
-			os.mkdir(self.result_folder_path)
-			print(self.result_folder_path)
-			
-			self.system_check_folder = os.path.join(self.result_folder_path, "System_Check")
-			os.mkdir(self.system_check_folder)
+		else:
+			self.result_folder_name = self.create_time_1
+			self.experiment_name = self.create_time_1
+		self.result_folder_path = os.path.join(self.result_folder_path_0, self.result_folder_name)
+		os.mkdir(self.result_folder_path)
+		print(self.result_folder_path)
+		
+		self.system_check_folder = os.path.join(self.result_folder_path, "System_Check")
+		os.mkdir(self.system_check_folder)
 
-			self.analysis_result_folder = os.path.join(self.result_folder_path, "Analysis Results")
-			os.mkdir(self.analysis_result_folder)
-			
-			# ~ self.base_window.system_check.mode_check = 1
-			### NEW ADD - END ###
-			
-			self.base_window.forget_page()
-			#self.base_window.page_num = self.base_window.frame_list.index(self.base_window.qualitative_analysis_1)
-			self.base_window.page_num = self.base_window.frame_list.index(self.base_window.qualitative_analysis_2)
-			self.base_window.switch_page()
+		self.analysis_result_folder = os.path.join(self.result_folder_path, "Analysis Results")
+		os.mkdir(self.analysis_result_folder)
+		
+		# ~ self.base_window.system_check.mode_check = 1
+		### NEW ADD - END ###
+		
+		self.base_window.forget_page()
+		#self.base_window.page_num = self.base_window.frame_list.index(self.base_window.qualitative_analysis_1)
+		self.base_window.page_num = self.base_window.frame_list.index(self.base_window.qualitative_analysis_2)
+		self.base_window.switch_page()
 
 
 class QuantitativeAnalysisFrame0(QualitativeAnalysisFrame0):
@@ -4757,6 +5171,7 @@ class IDCreateFrame(Frame):
 		self.well_button_table_frame = Frame(self.work_frame, bg=SAMPLE_BUTTON_FRAME_BDG_COLOR)
 		self.well_button_table_frame.pack(side=LEFT)
 		self.well_button = list(range(16))
+		self.well_frame = list(range(16))
 		r=-1
 		c=0
 		for i in range(0,16):
@@ -4764,7 +5179,8 @@ class IDCreateFrame(Frame):
 			if(r>3):
 				r=0
 				c+=1
-			self.well_button[i] = Button(self.well_button_table_frame,
+			self.well_frame[i] = Frame(self.well_button_table_frame, highlightbackground = SAMPLE_BUTTON_BGD_COLOR,  highlightthickness = 2, bd=0)
+			self.well_button[i] = Button(self.well_frame[i],
 										bg = SAMPLE_BUTTON_BGD_COLOR,
 										fg = SAMPLE_BUTTON_TXT_COLOR,
 										activebackground = SAMPLE_BUTTON_ACTIVE_BGD_COLOR,
@@ -4773,9 +5189,17 @@ class IDCreateFrame(Frame):
 										text = '#',
 										width = SAMPLE_BUTTON_WIDTH,
 										height = SAMPLE_BUTTON_HEIGHT)
+			# ~ if(i!=47):
 			self.well_button[i]['command'] = partial(self.well_button_clicked, i)
-			self.well_button[i].grid(row=r, column=c, padx=2, pady=2)
-
+			self.well_frame[i].grid(row=r, column=c, padx=1, pady=1)
+			self.well_button[i].pack()
+		
+		# ~ self.well_button[47]['bg'] = "blue"
+		# ~ self.well_button[47]['text'] = "B"
+		# ~ self.well_button[47]['state'] = "disabled"
+		self.well_frame[0]['highlightbackground'] = QS_FIRSTWELL_COLOR
+		self.well_frame[15]['highlightbackground'] = QS_LASTWELL_COLOR
+		
 		# Properties frame
 		self.property_frame = Frame(self.work_frame, bg=SAMPLE_BUTTON_FRAME_BDG_COLOR, width=495)
 		self.property_frame.pack(fill=BOTH, expand=TRUE, side=LEFT)
@@ -4838,14 +5262,14 @@ class IDCreateFrame(Frame):
 		
 		self.first_well_label = Label(self.qc1_frame,
 						text = "A1",
-						bg = SAMPLE_BUTTON_CHOOSE_BGD_COLOR,
+						bg = QS_FIRSTWELL_COLOR,
 						fg = LABEL_TXT_COLOR,
 						font = SAMPLE_LABEL_TXT_FONT)
 		self.first_well_label.grid(row=1, column=0)
 		
 		self.last_well_label = Label(self.qc1_frame,
-						text = "D4",
-						bg = SAMPLE_BUTTON_CHOOSE_BGD_COLOR,
+						text = "H6",
+						bg = QS_LASTWELL_COLOR,
 						fg = LABEL_TXT_COLOR,
 						font = SAMPLE_LABEL_TXT_FONT)
 		self.last_well_label.grid(row=1, column=1)
@@ -4861,9 +5285,6 @@ class IDCreateFrame(Frame):
 								command = self.quick_create_button_clicked)
 		self.quick_create_button.pack(ipadx=50, ipady=10)
 		
-		
-		
-
 		# In button frame
 		self.back_button = Button(self.button_frame,
 								text = "Back",
@@ -4965,6 +5386,23 @@ class IDCreateFrame(Frame):
 		self.sample_name_entry.grid(row=2, column=0, padx=30, pady=0)
 		self.sample_name_entry.focus_set()
 
+		# ~ if(n<6):
+			# ~ self.well_name_label['text'] = "A" + str(n+1)
+		# ~ elif(n<12):
+			# ~ self.well_name_label['text'] = "B" + str(n+1-6)
+		# ~ elif(n<18):
+			# ~ self.well_name_label['text'] = "C" + str(n+1-12)
+		# ~ elif(n<24):
+			# ~ self.well_name_label['text'] = "D" + str(n+1-18)
+		# ~ elif(n<30):
+			# ~ self.well_name_label['text'] = "E" + str(n+1-24)
+		# ~ elif(n<36):
+			# ~ self.well_name_label['text'] = "F" + str(n+1-30)
+		# ~ elif(n<42):
+			# ~ self.well_name_label['text'] = "G" + str(n+1-36)
+		# ~ else:
+			# ~ self.well_name_label['text'] = "H" + str(n+1-42)
+
 		if(n<4):
 			self.well_name_label['text'] = str(chr(65+n)) + '1'
 		elif(n<8):
@@ -4973,13 +5411,21 @@ class IDCreateFrame(Frame):
 			self.well_name_label['text'] = str(chr(65+n-8)) + '3'
 		else:
 			self.well_name_label['text'] = str(chr(65+n-12)) + '4'
-
-		if(self.first_well_button['bg'] == 'lawn green'):
+		
+		if(self.first_well_button['bg'] == 'lawn green' and self.well_frame[n]['highlightbackground'] != QS_LASTWELL_COLOR):
 			self.first_well_label['text'] = self.well_name_label['text']
 			self.first_well_index = n
-		else:
+			for i in range(0,16):
+				if(self.well_frame[i]['highlightbackground'] != QS_LASTWELL_COLOR):
+					self.well_frame[i]['highlightbackground'] = SAMPLE_BUTTON_BGD_COLOR
+			self.well_frame[n]['highlightbackground'] = QS_FIRSTWELL_COLOR
+		elif(self.first_well_button['bg'] != 'lawn green' and self.well_frame[n]['highlightbackground'] != QS_FIRSTWELL_COLOR):
 			self.last_well_label['text'] = self.well_name_label['text']
 			self.last_well_index = n
+			for i in range(0,16):
+				if(self.well_frame[i]['highlightbackground'] != QS_FIRSTWELL_COLOR):
+					self.well_frame[i]['highlightbackground'] = SAMPLE_BUTTON_BGD_COLOR
+			self.well_frame[n]['highlightbackground'] = QS_LASTWELL_COLOR
 			
 		self.ok_button = Button(self.property_labelframe,
 								text = "OK",
@@ -5023,6 +5469,60 @@ class IDCreateFrame(Frame):
 			wb = Workbook()
 			sheet = wb.active
 			
+			# ~ self.well_button_change_pos[0] = self.well_button[0]['text']
+			# ~ self.well_button_change_pos[1] = self.well_button[6]['text']
+			# ~ self.well_button_change_pos[2] = self.well_button[12]['text']
+			# ~ self.well_button_change_pos[3] = self.well_button[18]['text']
+			# ~ self.well_button_change_pos[4] = self.well_button[24]['text']
+			# ~ self.well_button_change_pos[5] = self.well_button[30]['text']
+			# ~ self.well_button_change_pos[6] = self.well_button[36]['text']
+			# ~ self.well_button_change_pos[7] = self.well_button[42]['text']
+			
+			# ~ self.well_button_change_pos[8] = self.well_button[1]['text']
+			# ~ self.well_button_change_pos[9] = self.well_button[7]['text']
+			# ~ self.well_button_change_pos[10] = self.well_button[13]['text']
+			# ~ self.well_button_change_pos[11] = self.well_button[19]['text']
+			# ~ self.well_button_change_pos[12] = self.well_button[25]['text']
+			# ~ self.well_button_change_pos[13] = self.well_button[31]['text']
+			# ~ self.well_button_change_pos[14] = self.well_button[37]['text']
+			# ~ self.well_button_change_pos[15] = self.well_button[43]['text']
+			
+			# ~ self.well_button_change_pos[16] = self.well_button[2]['text']
+			# ~ self.well_button_change_pos[17] = self.well_button[8]['text']
+			# ~ self.well_button_change_pos[18] = self.well_button[14]['text']
+			# ~ self.well_button_change_pos[19] = self.well_button[20]['text']
+			# ~ self.well_button_change_pos[20] = self.well_button[26]['text']
+			# ~ self.well_button_change_pos[21] = self.well_button[32]['text']
+			# ~ self.well_button_change_pos[22] = self.well_button[38]['text']
+			# ~ self.well_button_change_pos[23] = self.well_button[44]['text']
+			
+			# ~ self.well_button_change_pos[24] = self.well_button[3]['text']
+			# ~ self.well_button_change_pos[25] = self.well_button[9]['text']
+			# ~ self.well_button_change_pos[26] = self.well_button[15]['text']
+			# ~ self.well_button_change_pos[27] = self.well_button[21]['text']
+			# ~ self.well_button_change_pos[28] = self.well_button[27]['text']
+			# ~ self.well_button_change_pos[29] = self.well_button[33]['text']
+			# ~ self.well_button_change_pos[30] = self.well_button[39]['text']
+			# ~ self.well_button_change_pos[31] = self.well_button[45]['text']
+			
+			# ~ self.well_button_change_pos[32] = self.well_button[4]['text']
+			# ~ self.well_button_change_pos[33] = self.well_button[10]['text']
+			# ~ self.well_button_change_pos[34] = self.well_button[16]['text']
+			# ~ self.well_button_change_pos[35] = self.well_button[22]['text']
+			# ~ self.well_button_change_pos[36] = self.well_button[28]['text']
+			# ~ self.well_button_change_pos[37] = self.well_button[34]['text']
+			# ~ self.well_button_change_pos[38] = self.well_button[40]['text']
+			# ~ self.well_button_change_pos[39] = self.well_button[46]['text']
+			
+			# ~ self.well_button_change_pos[40] = self.well_button[5]['text']
+			# ~ self.well_button_change_pos[41] = self.well_button[11]['text']
+			# ~ self.well_button_change_pos[42] = self.well_button[17]['text']
+			# ~ self.well_button_change_pos[43] = self.well_button[23]['text']
+			# ~ self.well_button_change_pos[44] = self.well_button[29]['text']
+			# ~ self.well_button_change_pos[45] = self.well_button[35]['text']
+			# ~ self.well_button_change_pos[46] = self.well_button[41]['text']
+			# ~ self.well_button_change_pos[47] = self.well_button[47]['text']
+			
 			for i in range(0,16):
 				pos = "B" + str(i+12)
 				if(self.well_button[i]['text'] != "#"):
@@ -5032,12 +5532,12 @@ class IDCreateFrame(Frame):
 					
 			
 			if(self.direct_create == 1):
-				wb.save(id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsm')
+				wb.save(id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsx')
 				msg = messagebox.askquestion("","File has been created.\n Do you want to go back to the previous step?")
 				if(msg=="yes"):
 					file_name = self.base_window.qualitative_analysis_0.experiment_name
 					file_create_done = 1
-					self.base_window.qualitative_analysis_2.id_file_path = id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsm'
+					self.base_window.qualitative_analysis_2.id_file_path = id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsx'
 			# ~ elif(self.direct_create == 1):
 				# ~ wb.save(id_path + '/' + self.base_window.quantitative_analysis_0.experiment_name + '.xlsm')
 				# ~ msg = messagebox.askquestion("","File has been created.\n Do you want to go back to the previous step?")
@@ -5045,7 +5545,7 @@ class IDCreateFrame(Frame):
 					# ~ file_name = self.base_window.quantitative_analysis_0.experiment_name
 					# ~ file_create_done = 1
 			else:
-				path = filedialog.asksaveasfilename(initialdir = id_path + '/', defaultextension='.xlsm')
+				path = filedialog.asksaveasfilename(initialdir = id_path + '/', defaultextension='.xlsx')
 				if path is not None:
 					tmp = 0
 					for i in range(len(path)):
@@ -5064,8 +5564,8 @@ class IDCreateFrame(Frame):
 				if(self.direct_create == 0): #create file with create module from main menu
 					self.back_clicked()
 				elif(self.direct_create==1): #create file with create module from qualitative_analysis_2
-
-					wb = load_workbook(id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsm')
+					
+					wb = load_workbook(id_path + '/' + self.base_window.qualitative_analysis_0.experiment_name + '.xlsx')
 					sheet = wb.active					
 					self.base_window.qualitative_analysis_2.id_list[0] = sheet["B12"].value
 					self.base_window.qualitative_analysis_2.id_list[1] = sheet["B16"].value
@@ -6083,11 +6583,11 @@ class ViewResultFrame(Frame):
 		self.base_window.switch_page()
 
 	def open_clicked(self):
-		sample_button_list = list(range(49))
-		result_button_list = list(range(49))
-		position_button_list = list(range(49))
+		sample_button_list = list(range(17))
+		result_button_list = list(range(17))
+		position_button_list = list(range(17))
 
-		self.path = filedialog.askopenfilename(initialdir=results_path, filetypes=[('Excel file','.xlsm')])
+		self.path = filedialog.askopenfilename(initialdir=results_path, filetypes=[('Excel file','.xlsx')])
 		if self.path is not None:
 			try:
 				self.infor_frame.destroy()
@@ -6137,7 +6637,7 @@ class ViewResultFrame(Frame):
 					borderwidth = 0)
 			info3_button_list.grid(row=2, column=0, sticky=EW, padx=1, pady=1)
 
-			for i in range(0,49):
+			for i in range(0,17):
 				sample_pos = 'B' + str(i+11)
 				sample_button_list[i] = Button(self.report_frame.scrollable_frame,
 						fg = LABEL_TXT_COLOR,
@@ -6602,8 +7102,6 @@ class SettingFrame(Frame):
 		self.title_label.pack(expand=TRUE)
 		
 		# In work frame
-		
-		
 		self.calibration_button = Button(self.work_frame,
 									text = "Calibration",
 									font = MAIN_FUCNTION_BUTTON_FONT,
@@ -6634,6 +7132,83 @@ class SettingFrame(Frame):
 								# ~ command = self.back_clicked)
 		self.back_button.pack(side=LEFT, padx=0, pady=0, ipady=10, ipadx=30, anchor=W)
 
+class TrialExpiredFrame(Frame):
+	def __init__(self, master):
+		super().__init__(master)
+		self.base_window = master
+
+		# ~ self.title_frame = Frame(self, bg = TITILE_FRAME_BGD_COLOR)
+		# ~ self.title_frame.pack(ipadx=0, ipady=5, fill=X)
+		self.work_frame = Frame(self, bg = MAIN_FUNCTION_FRAME_BGD_COLOR)
+		self.work_frame.pack(expand=TRUE)
+		self.work_frame.pack_propagate(0)
+		# ~ self.button_frame = Frame(self, bg = MAIN_MENU_BUTTON_FRAME_BGD_COLOR)
+		# ~ self.button_frame.pack(fill=X, expand=TRUE)
+		
+		# In title frame
+		# ~ self.title_label = Label(self.title_frame,
+								# ~ text = "...",
+								# ~ font = TITLE_TXT_FONT,
+								# ~ bg = TITILE_FRAME_BGD_COLOR,
+								# ~ fg = TITILE_FRAME_TXT_COLOR)
+		# ~ self.title_label.pack(padx=0, pady=0, ipady=10, ipadx=30)
+		
+		# In work frame
+		print("self.base_window.trial_days: ", self.base_window.trial_days)
+		self.expire_info1_label = Label(self.work_frame,
+								text = "Your " + str(self.base_window.trial_days) + "-day trial has expired",
+								font = ('Courier',15),
+								bg = LABEL_FRAME_BGD_COLOR,
+								fg = 'red')
+		self.expire_info1_label.grid(row=0, column=0, pady=30, sticky=EW)
+		
+		self.expire_info2_label = Label(self.work_frame,
+								text = " Please enter the activation code to continue using the application",
+								font = TITLE_TXT_FONT,
+								bg = LABEL_FRAME_BGD_COLOR,
+								fg = 'grey35')
+		self.expire_info2_label.grid(row=2, column=0, pady=10, padx=30, sticky=W)
+		
+		self.active_code_entry = Entry(self.work_frame, width=30, font=('Courier',14))
+		self.active_code_entry.grid(row=3, column=0, pady=10, padx=30, sticky=EW)
+		
+		self.activate_button = Button(self.work_frame,
+								text = "Activate",
+								font = SWITCH_PAGE_BUTTON_FONT,
+								# width = SWITCH_PAGE_BUTTON_WIDTH,
+								# height = SWITCH_PAGE_BUTTON_HEIGHT,
+								bg = SWITCH_PAGE_BUTTON_BGD_COLOR,
+								fg = SWITCH_PAGE_BUTTON_TXT_COLOR,
+								borderwidth = 0,
+								command = self.activate_clicked)
+		self.activate_button.grid(row=4, column=0, ipady=10, pady=30, padx=150, sticky=EW)
+	
+	def activate_clicked(self):
+		self.active_code_enter = self.active_code_entry.get()
+		if(self.active_code_enter != ''):
+			if(self.active_code_enter == trial_30days_extend_code):
+				if(active_code != trial_30days_extend_code):
+					fw = open(working_dir + "/active_code.txt",'w')	
+					fw.writelines(self.active_code_enter + '\n')
+					messagebox.showinfo("","Your trial package has been extended to 30 days.")
+					self.base_window.forget_page()
+					self.base_window.page_num = self.base_window.frame_list.index(self.base_window.main_menu)
+					self.base_window.switch_page()
+					self.base_window.system_check_light()
+				else:
+					messagebox.showerror("","Your code is invalid, please try again.")
+			elif(self.active_code_enter == trial_full_active_code):
+				fw = open(working_dir + "/active_code.txt",'w')	
+				fw.writelines(self.active_code_enter + '\n')
+				messagebox.showinfo("","Successful activation.")
+				self.base_window.forget_page()
+				self.base_window.page_num = self.base_window.frame_list.index(self.base_window.main_menu)
+				self.base_window.switch_page()
+				self.base_window.system_check_light()
+			else:
+				messagebox.showerror("","Your code is invalid, please try again.")
+		else:
+			messagebox.showwarning("","Please enter activation code.")
 
 class MainMenu(Frame):
 	def __init__(self, master):
@@ -6899,6 +7474,8 @@ class MainMenu(Frame):
 			pass
 		
 		self.base_window.forget_page()
+		self.base_window.id_create.first_well_index = 0
+		self.base_window.id_create.last_well_index = 47
 		self.base_window.page_num = self.base_window.frame_list.index(self.base_window.id_create)
 		self.base_window.switch_page()
 
@@ -7015,6 +7592,7 @@ class MainWindow(Tk):
 
 		self.page_num = 0
 		self.frame_list = []
+		self.trial_days = 0
 
 		self.main_menu = MainMenu(self)
 		self.qualitative_option = QualitativeOptionFrame(self)
@@ -7046,6 +7624,7 @@ class MainWindow(Tk):
 		self.quantitative_analysis_0 = QuantitativeAnalysisFrame0(self)
 		self.connect = ConnectFrame(self)
 		self.setting = SettingFrame(self)
+		self.trial_expried = TrialExpiredFrame(self)
 
 		self.frame_list.append(self.main_menu)
 		self.frame_list.append(self.qualitative_option)
@@ -7077,9 +7656,16 @@ class MainWindow(Tk):
 		self.frame_list.append(self.quantitative_analysis_0)
 		self.frame_list.append(self.connect)
 		self.frame_list.append(self.setting) 
+		self.frame_list.append(self.trial_expried)
 
 		self.switch_page()
-		self.system_check_light()
+		if(active_code == trial_full_active_code):
+			self.system_check_light()
+		elif(active_code == trial_30days_extend_code):
+			self.trial_30days_extend()
+		else:
+			self.trial_7days()
+			
 
 	def forget_page(self):
 		self.frame_list[self.page_num].forget()
@@ -7118,6 +7704,47 @@ class MainWindow(Tk):
 		self.switch_page()
 		self.update_idletasks()
 		self.system_check.serial_handle()
+	
+	def trial_30days_extend(self):
+		self.dt = rtc.datetime
+		self.recent_date = self.dt.tm_mday
+		self.recent_month = self.dt.tm_mon
+		self.recent_year = self.dt.tm_year
+		
+		time1 = trial_year*365 + trial_month*30 + trial_date
+		time2 = self.recent_year*365 + self.recent_month*30 + self.recent_date
+		number_of_days = time2 - time1
+		print("Trial days left: ", 30 - number_of_days, '/30')
+		
+		if(number_of_days > 30):
+			self.trial_days = 30
+			self.forget_page()
+			self.page_num = self.frame_list.index(self.trial_expried)
+			self.switch_page()
+			self.update_idletasks()
+		else:
+			self.system_check_light()
+			
+	def trial_7days(self):
+		self.dt = rtc.datetime
+		self.recent_date = self.dt.tm_mday
+		self.recent_month = self.dt.tm_mon
+		self.recent_year = self.dt.tm_year
+		
+		time1 = trial_year*365 + trial_month*30 + trial_date
+		time2 = self.recent_year*365 + self.recent_month*30 + self.recent_date
+		number_of_days = time2 - time1
+		print("Trial days left: ", 7 - number_of_days, '/7')
+		
+		if(number_of_days > 7):
+			self.trial_days = 7
+			self.forget_page()
+			self.page_num = self.frame_list.index(self.trial_expried)
+			self.switch_page()
+			self.update_idletasks()
+		else:
+			self.system_check_light()
+		
 	
 if __name__ == "__main__":
 	app = MainWindow()
